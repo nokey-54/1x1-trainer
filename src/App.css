@@ -1,0 +1,79 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fix iOS Safari issues */
+html {
+  height: -webkit-fill-available;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* Mobile Safari */
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  overflow-x: hidden;
+  background: linear-gradient(135deg, #fff0f5 0%, #ffb6c1 100%);
+}
+
+/* iOS specific styling */
+@supports (-webkit-touch-callout: none) {
+  input, button {
+    -webkit-appearance: none;
+  }
+  
+  input[type="number"] {
+    font-size: 16px; /* Prevents zoom on input focus */
+  }
+}
+
+/* Add animation for button press */
+button:active {
+  transform: scale(0.95) !important;
+}
+
+/* Use system fonts as fallback */
+@font-face {
+  font-family: 'Comic Sans MS';
+  src: local('Comic Sans MS');
+  font-display: swap;
+}
+
+/* Animation for correct answers */
+@keyframes celebrate {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0); }
+}
+
+/* Make active elements smoother */
+input, button {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform, box-shadow, border-color;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Animation for feedback */
+@keyframes feedback-appear {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Make sure mobile view is properly scrollable */
+@media (max-height: 700px) {
+  body {
+    height: auto;
+    min-height: 100%;
+  }
+  
+  .container {
+    padding: 15px;
+  }
+}
