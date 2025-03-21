@@ -51,6 +51,12 @@ const bounce = keyframes`
   60% {transform: translateY(-15px);}
 `;
 
+const floatAnimation = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
+
 // Base mobile-first styles
 const AppContainer = styled.div`
   background: linear-gradient(135deg, #fff0f5 0%, #ffb6c1 100%);
@@ -432,6 +438,90 @@ const ProgressBar = styled.div`
       return 'linear-gradient(to right, #cd7f32, #b36a00)';
     }};
     transition: width 0.5s ease-in-out;
+  }
+`;
+
+// Trophy path with improved visuals
+const TrophyPathContainer = styled.div`
+  position: relative;
+  width: 100%;
+  height: 30px;
+  margin-top: 2px;
+  margin-bottom: 10px;
+  
+  @media (min-width: 768px) {
+    height: 40px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+  }
+`;
+
+const TrophyPath = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, #cd7f32, #c0c0c0, #ffd700, #ff1a1a);
+  transform: translateY(-50%);
+  border-radius: 5px;
+  
+  @media (min-width: 768px) {
+    height: 6px;
+  }
+`;
+
+const TrophyMilestone = styled.div`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background-color: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    
+    @media (min-width: 768px) {
+      width: 12px;
+      height: 12px;
+    }
+  }
+`;
+
+const TrophyIcon = styled.div`
+  font-size: 1rem;
+  margin-bottom: 20px;
+  opacity: ${props => props.active ? 1 : 0.5};
+  filter: ${props => props.active ? 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' : 'grayscale(70%)'};
+  transition: all 0.3s ease;
+  animation: ${props => props.active ? floatAnimation : 'none'} 2s ease-in-out infinite;
+  
+  @media (min-width: 768px) {
+    font-size: 1.4rem;
+  }
+`;
+
+const TrophyLabel = styled.div`
+  font-size: 0.55rem;
+  color: ${props => props.active ? '#db7093' : '#aaa'};
+  font-weight: ${props => props.active ? 'bold' : 'normal'};
+  position: absolute;
+  bottom: -14px;
+  white-space: nowrap;
+  
+  @media (min-width: 768px) {
+    font-size: 0.7rem;
+    bottom: -18px;
   }
 `;
 
@@ -1220,9 +1310,23 @@ function App() {
     link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap';
     document.head.appendChild(link);
     
+    // Add apple touch icon for home screen
+    const appleIcon = document.createElement('link');
+    appleIcon.rel = 'apple-touch-icon';
+    appleIcon.href = '/apple-touch-icon.png';
+    document.head.appendChild(appleIcon);
+    
+    // Make it feel like a native app when added to home screen
+    const webApp = document.createElement('meta');
+    webApp.name = 'apple-mobile-web-app-capable';
+    webApp.content = 'yes';
+    document.head.appendChild(webApp);
+    
     return () => {
       document.head.removeChild(meta);
       document.head.removeChild(link);
+      document.head.removeChild(appleIcon);
+      document.head.removeChild(webApp);
     };
   }, []);
 
@@ -1366,11 +1470,6 @@ function App() {
     setQuestion(newQuestion);
     setAnswer('');
 
-    // Reset the wrong question flag when generating a totally new question
-    if (!lastQuestionWasWrong) {
-      setLastQuestionWasWrong(false);
-    }
-    
     // Store values for hint system
     const correctAnswer = operation === '*' ? num1 * num2 : num1 / num2;
     setHintData({
@@ -1383,9 +1482,12 @@ function App() {
     // Save to localStorage to prevent refreshing for easier questions
     localStorage.setItem('mathPrincess_currentQuestion', newQuestion);
     localStorage.setItem('mathPrincess_difficulty', playerSkillLevel.toString());
-    localStorage.setItem('mathPrincess_lastQuestionWasWrong', lastQuestionWasWrong.toString());
+    localStorage.setItem('mathPrincess_lastQuestionWasWrong', 'false'); // Reset when generating new question
     localStorage.setItem('mathPrincess_answer', correctAnswer.toString());
     localStorage.setItem('mathPrincess_currentStreak', currentStreak.toString());
+    
+    // Reset wrong question flag completely when generating a new question
+    setLastQuestionWasWrong(false);
     
     // Record timestamp for this question
     localStorage.setItem('mathPrincess_questionTimestamp', Date.now().toString());
@@ -1469,6 +1571,7 @@ function App() {
         // Update streak count
         const newStreak = currentStreak + 1;
         setCurrentStreak(newStreak);
+        localStorage.setItem('mathPrincess_currentStreak', newStreak.toString());
         
         // Adjust difficulty if adaptive mode is on
         if (adaptiveDifficulty) {
@@ -1548,6 +1651,7 @@ function App() {
       
       // Reset streak on wrong answer
       setCurrentStreak(0);
+      localStorage.setItem('mathPrincess_currentStreak', '0');
       
       // Mark that this question was answered incorrectly
       setLastQuestionWasWrong(true);
@@ -1609,6 +1713,9 @@ function App() {
           <p style="font-size: 1.2rem; color: #db7093;">
             Ich habe <strong>${score} Punkte</strong> bei "Mathe Prinzessin" erreicht!
           </p>
+          <p style="font-size: 0.9rem; color: #db7093; margin-top: 5px;">
+            ${new Date().toLocaleDateString()}
+          </p>
         </div>
       `;
       clone.appendChild(shareInfo);
@@ -1623,356 +1730,377 @@ function App() {
         logging: false
       });
       
-      // Convert to image
-      const image = canvas.toDataURL('image/png');
-      setShareImage(image);
-      
-      // Clean up
-      document.body.removeChild(clone);
-      
-      // Show share modal
-      setShowShareModal(true);
-    } catch (error) {
-      console.error('Error creating share image:', error);
-      alert('Es gab ein Problem beim Erstellen des Bildes. Bitte versuche es später erneut.');
-    }
-  };
-
-  // Download image
-  const downloadImage = () => {
-    const link = document.createElement('a');
-    link.download = 'mathe-prinzessin-ergebnis.png';
-    link.href = shareImage;
-    link.click();
-  };
-
-  // Share image (simulate)
-  const shareVia = (platform) => {
-    alert(`Teilen über ${platform} (In einer echten App würde hier die native Teilen-Funktionalität aufgerufen werden)`);
-    setShowShareModal(false);
-  };
-
-  // Calculate progress percentage (based on 50 correct answers goal)
-  const progressPercentage = (score / 50) * 100;
-
-  const renderMultiplicationGrid = (num1, num2) => {
-    // For large numbers, simplify the grid representation
-    const displayLimit = 10;
-    let limited = false;
-    
-    let displayNum1 = num1;
-    let displayNum2 = num2;
-    
-    if (num1 > displayLimit || num2 > displayLimit) {
-      limited = true;
-      displayNum1 = Math.min(num1, displayLimit);
-      displayNum2 = Math.min(num2, displayLimit);
-    }
-    
-    const items = [];
-    for (let i = 0; i < displayNum1 * displayNum2; i++) {
-      items.push(<GridItem key={i} delay={i < 30 ? i * 0.1 : 3} />);
-    }
-    
-    return (
-      <VisualizationContainer>
-        <ItemGrid cols={displayNum2} rows={displayNum1}>
-          {items}
-        </ItemGrid>
-        <div style={{ 
-          marginTop: '10px', 
-          color: '#db7093', 
-          fontWeight: 'bold', 
-          fontSize: isMobile ? '0.8rem' : '1rem' 
-        }}>
-          {num1} × {num2} = {num1 * num2}
-          {limited && <div style={{ fontSize: '0.7rem', marginTop: '5px' }}>
-            (Nur ein Teil der Kreise wird angezeigt)
-          </div>}
-        </div>
-      </VisualizationContainer>
-    );
-  };
-
-  const renderDivisionVisualization = (num1, num2) => {
-    const quotient = num1 / num2;
-    const groups = [];
-    
-    // Limit visualization for large numbers
-    const displayLimit = 10;
-    let limited = false;
-    
-    let displayNum1 = num1;
-    let displayNum2 = num2;
-    
-    if (num1 > 40 || num2 > displayLimit) {
-      limited = true;
-      displayNum1 = Math.min(num1, 40);
-      displayNum2 = Math.min(num2, displayLimit);
-    }
-    
-    const displayQuotient = Math.floor(displayNum1 / displayNum2);
-    
-    for (let i = 0; i < displayNum2; i++) {
-      const groupItems = [];
-      for (let j = 0; j < displayQuotient; j++) {
-        groupItems.push(<DivisionCircle key={`${i}-${j}`} delay={i * displayQuotient + j < 30 ? i * displayQuotient + j : 3} />);
-      }
-      groups.push(
-        <DivisionGroup key={i}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>{groupItems}</div>
-          <GroupLabel>Gruppe {i+1}</GroupLabel>
-        </DivisionGroup>
-      );
-    }
-    
-    return (
-      <VisualizationContainer>
-        <DivisionContainer>
-          <div style={{ 
-            color: '#db7093', 
-            fontWeight: 'bold', 
-            marginBottom: '8px',
-            fontSize: isMobile ? '0.8rem' : '1rem'
-          }}>
-            {num1} ÷ {num2} = {quotient}
-            {limited && <div style={{ fontSize: '0.7rem', marginTop: '5px' }}>
-              (Vereinfachte Darstellung)
-            </div>}
-          </div>
-          <DivisionRow>
-            {groups}
-          </DivisionRow>
-        </DivisionContainer>
-      </VisualizationContainer>
-    );
-  };
-
-  return (
-    <AppContainer style={{ height: `${viewportHeight}px` }}>
-      {/* Confetti effect when answering correctly */}
-      {showConfetti && confetti.map(c => (
-        <Confetti 
-          key={c.id}
-          style={{
-            left: `${c.x}%`,
-            width: `${c.size}px`,
-            height: `${c.size}px`,
-            animationDelay: `${c.delay}s`
-          }}
-          color={c.color}
-        />
-      ))}
-      
-      <Card ref={cardRef}>
-        {/* Decorative sparkles */}
-        <Sparkle />
-        <Sparkle />
-        <Sparkle />
-        <Sparkle />
-        
-        <Title>Mathe Prinzessin 👑</Title>
-        
-        <ProgressContainer>
-          <ProgressLabel>
-            <span>Ziel: 50 Punkte</span>
-            <span>{score} / 50</span>
-          </ProgressLabel>
-          <ProgressBar progress={progressPercentage} />
-        </ProgressContainer>
-        
-        <QuestionBox>
-          {isSpecialQuestion && <SpecialQuestionIndicator>Bonus-Aufgabe</SpecialQuestionIndicator>}
-          {question}
-          <FeedbackMessage 
-            show={feedback.show} 
-            type={feedback.type}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontSize: isMobile ? '1.5rem' : '2rem' }}>{feedback.icon}</span>
-              <span>{feedback.message}</span>
-            </div>
-          </FeedbackMessage>
-          
-          {/* Hint button */}
-          <HintButton onClick={handleShowHint}>
-            ?
-          </HintButton>
-        </QuestionBox>
-        
-        {/* Streak counter */}
-        <StreakDisplay>
-          {currentStreak > 0 ? 
-            <>Richtig in Folge: <StreakCount count={currentStreak}>{currentStreak}x</StreakCount> 🔥</> : 
-            <>Neue Runde starten!</>
+            // Convert to image
+            const image = canvas.toDataURL('image/png');
+            setShareImage(image);
+            
+            // Clean up
+            document.body.removeChild(clone);
+            
+            // Show share modal
+            setShowShareModal(true);
+          } catch (error) {
+            console.error('Error creating share image:', error);
+            alert('Es gab ein Problem beim Erstellen des Bildes. Bitte versuche es später erneut.');
           }
-        </StreakDisplay>
-        
-        <InputContainer>
-          <Input
-            ref={inputRef}
-            type="number"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Deine Antwort"
-            inputMode={useCustomKeypad ? 'none' : 'numeric'} // Prevent mobile keyboard if using custom keypad
-            showEnterButton={isMobile && !useCustomKeypad}
-            readOnly={useCustomKeypad} // Make read-only if using custom keypad
-            onClick={() => {
-              if (useCustomKeypad) {
-                // Prevent keyboard on mobile when clicking input
-                inputRef.current?.blur();
-              }
-            }}
-          />
-          {(isMobile && !useCustomKeypad) && (
-            <EnterButton onClick={checkAnswer}>
-              <EnterIcon>↵</EnterIcon>
-            </EnterButton>
-          )}
-        </InputContainer>
-        
-        {/* Custom numeric keypad for mobile */}
-        {useCustomKeypad && (
-          <CustomKeypad show={useCustomKeypad}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-              <KeypadButton key={num} onClick={() => handleCustomKeypadInput(num.toString())}>
-                {num}
-              </KeypadButton>
+        };
+      
+        // Download image
+        const downloadImage = () => {
+          const link = document.createElement('a');
+          link.download = 'mathe-prinzessin-ergebnis.png';
+          link.href = shareImage;
+          link.click();
+        };
+      
+        // Share image (simulate)
+        const shareVia = (platform) => {
+          alert(`Teilen über ${platform} (In einer echten App würde hier die native Teilen-Funktionalität aufgerufen werden)`);
+          setShowShareModal(false);
+        };
+      
+        // Calculate progress percentage (based on 50 correct answers goal)
+        const progressPercentage = (score / 50) * 100;
+      
+        const renderMultiplicationGrid = (num1, num2) => {
+          // For large numbers, simplify the grid representation
+          const displayLimit = 10;
+          let limited = false;
+          
+          let displayNum1 = num1;
+          let displayNum2 = num2;
+          
+          if (num1 > displayLimit || num2 > displayLimit) {
+            limited = true;
+            displayNum1 = Math.min(num1, displayLimit);
+            displayNum2 = Math.min(num2, displayLimit);
+          }
+          
+          const items = [];
+          for (let i = 0; i < displayNum1 * displayNum2; i++) {
+            items.push(<GridItem key={i} delay={i < 30 ? i * 0.1 : 3} />);
+          }
+          
+          return (
+            <VisualizationContainer>
+              <ItemGrid cols={displayNum2} rows={displayNum1}>
+                {items}
+              </ItemGrid>
+              <div style={{ 
+                marginTop: '10px', 
+                color: '#db7093', 
+                fontWeight: 'bold', 
+                fontSize: isMobile ? '0.8rem' : '1rem' 
+              }}>
+                {num1} × {num2} = {num1 * num2}
+                {limited && <div style={{ fontSize: '0.7rem', marginTop: '5px' }}>
+                  (Nur ein Teil der Kreise wird angezeigt)
+                </div>}
+              </div>
+            </VisualizationContainer>
+          );
+        };
+      
+        const renderDivisionVisualization = (num1, num2) => {
+          const quotient = num1 / num2;
+          const groups = [];
+          
+          // Limit visualization for large numbers
+          const displayLimit = 10;
+          let limited = false;
+          
+          let displayNum1 = num1;
+          let displayNum2 = num2;
+          
+          if (num1 > 40 || num2 > displayLimit) {
+            limited = true;
+            displayNum1 = Math.min(num1, 40);
+            displayNum2 = Math.min(num2, displayLimit);
+          }
+          
+          const displayQuotient = Math.floor(displayNum1 / displayNum2);
+          
+          for (let i = 0; i < displayNum2; i++) {
+            const groupItems = [];
+            for (let j = 0; j < displayQuotient; j++) {
+              groupItems.push(<DivisionCircle key={`${i}-${j}`} delay={i * displayQuotient + j < 30 ? i * displayQuotient + j : 3} />);
+            }
+            groups.push(
+              <DivisionGroup key={i}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>{groupItems}</div>
+                <GroupLabel>Gruppe {i+1}</GroupLabel>
+              </DivisionGroup>
+            );
+          }
+          
+          return (
+            <VisualizationContainer>
+              <DivisionContainer>
+                <div style={{ 
+                  color: '#db7093', 
+                  fontWeight: 'bold', 
+                  marginBottom: '8px',
+                  fontSize: isMobile ? '0.8rem' : '1rem'
+                }}>
+                  {num1} ÷ {num2} = {quotient}
+                  {limited && <div style={{ fontSize: '0.7rem', marginTop: '5px' }}>
+                    (Vereinfachte Darstellung)
+                  </div>}
+                </div>
+                <DivisionRow>
+                  {groups}
+                </DivisionRow>
+              </DivisionContainer>
+            </VisualizationContainer>
+          );
+        };
+      
+        return (
+          <AppContainer style={{ height: `${viewportHeight}px` }}>
+            {/* Confetti effect when answering correctly */}
+            {showConfetti && confetti.map(c => (
+              <Confetti 
+                key={c.id}
+                style={{
+                  left: `${c.x}%`,
+                  width: `${c.size}px`,
+                  height: `${c.size}px`,
+                  animationDelay: `${c.delay}s`
+                }}
+                color={c.color}
+              />
             ))}
-            <KeypadButton isAction onClick={() => handleCustomKeypadInput('clear')}>C</KeypadButton>
-            <KeypadButton onClick={() => handleCustomKeypadInput('0')}>0</KeypadButton>
-            <KeypadButton isAction onClick={() => handleCustomKeypadInput('backspace')}>⌫</KeypadButton>
-          </CustomKeypad>
-        )}
-        
-        {/* Action buttons in a row on mobile */}
-        <ButtonContainer>
-          <Button 
-            primary 
-            onClick={checkAnswer}
-          >
-            {useCustomKeypad ? 'OK ✨' : 'Prüfen ✨'}
-          </Button>
-          <Button 
-            onClick={generateQuestion}
-          >
-            {useCustomKeypad ? 'Neu 🦄' : 'Neue Aufgabe 🦄'}
-          </Button>
-        </ButtonContainer>
-        
-        <ShareButton onClick={handleShare}>
-          <span>Teilen</span>
-          <span>📱</span>
-        </ShareButton>
-        
-        <Footer>
-          <ScoreDisplay>
-            <Trophy score={score}>🏆</Trophy>
-            <ScoreText>{score} Punkte</ScoreText>
-          </ScoreDisplay>
-          
-          <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏻 von Papa</span>
-        </Footer>
-        
-        {/* Skill level indicator (visible but subtle) */}
-        <SkillLevelIndicator>
-          {Array.from({length: 10}).map((_, i) => (
-            <SkillDot key={i} active={i < playerSkillLevel} />
-          ))}
-        </SkillLevelIndicator>
-      </Card>
+            
+            <Card ref={cardRef}>
+              {/* Decorative sparkles */}
+              <Sparkle />
+              <Sparkle />
+              <Sparkle />
+              <Sparkle />
+              
+              <Title>Mathe Prinzessin 👑</Title>
+              
+              <ProgressContainer>
+                <ProgressLabel>
+                  <span>Ziel: 50 Punkte</span>
+                  <span>{score} / 50</span>
+                </ProgressLabel>
+                <ProgressBar progress={progressPercentage} />
+              </ProgressContainer>
+              
+              {/* Beautiful Trophy Path - New Feature */}
+              <TrophyPathContainer>
+                <TrophyPath />
+                <TrophyMilestone style={{ left: '10%' }}>
+                  <TrophyIcon active={score >= 10}>🥉</TrophyIcon>
+                  <TrophyLabel active={score >= 10}>Bronze</TrophyLabel>
+                </TrophyMilestone>
+                <TrophyMilestone style={{ left: '40%' }}>
+                  <TrophyIcon active={score >= 25}>🥈</TrophyIcon>
+                  <TrophyLabel active={score >= 25}>Silber</TrophyLabel>
+                </TrophyMilestone>
+                <TrophyMilestone style={{ left: '70%' }}>
+                  <TrophyIcon active={score >= 50}>🥇</TrophyIcon>
+                  <TrophyLabel active={score >= 50}>Gold</TrophyLabel>
+                </TrophyMilestone>
+                <TrophyMilestone style={{ left: '95%' }}>
+                  <TrophyIcon active={score >= 100}>💎</TrophyIcon>
+                  <TrophyLabel active={score >= 100}>Rubin</TrophyLabel>
+                </TrophyMilestone>
+              </TrophyPathContainer>
+              
+              <QuestionBox>
+                {isSpecialQuestion && <SpecialQuestionIndicator>Bonus-Aufgabe</SpecialQuestionIndicator>}
+                {question}
+                <FeedbackMessage 
+                  show={feedback.show} 
+                  type={feedback.type}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontSize: isMobile ? '1.5rem' : '2rem' }}>{feedback.icon}</span>
+                    <span>{feedback.message}</span>
+                  </div>
+                </FeedbackMessage>
+                
+                {/* Hint button */}
+                <HintButton onClick={handleShowHint}>
+                  ?
+                </HintButton>
+              </QuestionBox>
+              
+              {/* Streak counter */}
+              <StreakDisplay>
+                {currentStreak > 0 ? 
+                  <>Richtig in Folge: <StreakCount count={currentStreak}>{currentStreak}x</StreakCount> 🔥</> : 
+                  <>Neue Runde starten!</>
+                }
+              </StreakDisplay>
+              
+              <InputContainer>
+                <Input
+                  ref={inputRef}
+                  type="number"
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Deine Antwort"
+                  inputMode={useCustomKeypad ? 'none' : 'numeric'} // Prevent mobile keyboard if using custom keypad
+                  showEnterButton={isMobile && !useCustomKeypad}
+                  readOnly={useCustomKeypad} // Make read-only if using custom keypad
+                  onClick={() => {
+                    if (useCustomKeypad) {
+                      // Prevent keyboard on mobile when clicking input
+                      inputRef.current?.blur();
+                    }
+                  }}
+                />
+                {(isMobile && !useCustomKeypad) && (
+                  <EnterButton onClick={checkAnswer}>
+                    <EnterIcon>↵</EnterIcon>
+                  </EnterButton>
+                )}
+              </InputContainer>
+              
+              {/* Custom numeric keypad for mobile */}
+              {useCustomKeypad && (
+                <CustomKeypad show={useCustomKeypad}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                    <KeypadButton key={num} onClick={() => handleCustomKeypadInput(num.toString())}>
+                      {num}
+                    </KeypadButton>
+                  ))}
+                  <KeypadButton isAction onClick={() => handleCustomKeypadInput('clear')}>C</KeypadButton>
+                  <KeypadButton onClick={() => handleCustomKeypadInput('0')}>0</KeypadButton>
+                  <KeypadButton isAction onClick={() => handleCustomKeypadInput('enter')}>⏎</KeypadButton>
+                </CustomKeypad>
+              )}
+              
+              {/* Action buttons in a row on mobile */}
+              <ButtonContainer>
+                <Button 
+                  primary 
+                  onClick={checkAnswer}
+                >
+                  {useCustomKeypad ? 'OK ✨' : 'Prüfen ✨'}
+                </Button>
+                <Button 
+                  onClick={generateQuestion}
+                >
+                  {useCustomKeypad ? 'Neu 🦄' : 'Neue Aufgabe 🦄'}
+                </Button>
+              </ButtonContainer>
+              
+              <ShareButton onClick={handleShare}>
+                <span>Teilen</span>
+                <span>📱</span>
+              </ShareButton>
+              
+              <Footer>
+                <ScoreDisplay>
+                  <Trophy score={score}>🏆</Trophy>
+                  <ScoreText>{score} Punkte</ScoreText>
+                </ScoreDisplay>
+                
+                <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏻 von Papa</span>
+              </Footer>
+              
+              {/* Skill level indicator (visible but subtle) */}
+              <SkillLevelIndicator>
+                {Array.from({length: 10}).map((_, i) => (
+                  <SkillDot key={i} active={i < playerSkillLevel} />
+                ))}
+              </SkillLevelIndicator>
+            </Card>
+            
+            {/* Hint Modal */}
+            <HintModal show={showHint} onClick={() => setShowHint(false)}>
+              <HintContent onClick={e => e.stopPropagation()}>
+                <HintTitle>Tipp</HintTitle>
+                <CloseButton onClick={() => setShowHint(false)}>×</CloseButton>
+                
+                {hintData.operation === '*' ? (
+                  <>
+                    <FriendlyHelper>
+                      <HelperEmoji>🦄</HelperEmoji>
+                      <HelperText>
+                        Bei <strong>{hintData.num1} mal {hintData.num2}</strong> legst du {hintData.num1} Reihen mit jeweils {hintData.num2} Kreisen.
+                      </HelperText>
+                    </FriendlyHelper>
+                    <HintImageContainer>
+                      {renderMultiplicationGrid(hintData.num1, hintData.num2)}
+                    </HintImageContainer>
+                    <HelperText>
+                      Zähle alle Kreise: Es sind {hintData.num1 * hintData.num2}!
+                    </HelperText>
+                  </>
+                ) : (
+                  <>
+                    <FriendlyHelper>
+                      <HelperEmoji>🦄</HelperEmoji>
+                      <HelperText>
+                        Bei <strong>{hintData.num1} geteilt durch {hintData.num2}</strong> teilst du {hintData.num1} Kreise in {hintData.num2} gleiche Gruppen.
+                      </HelperText>
+                    </FriendlyHelper>
+                    <HintImageContainer>
+                      {renderDivisionVisualization(hintData.num1, hintData.num2)}
+                    </HintImageContainer>
+                    <HelperText>
+                      Jede Gruppe hat {hintData.answer} Kreise!
+                    </HelperText>
+                  </>
+                )}
+                
+                <Button primary onClick={() => setShowHint(false)} style={{ marginTop: '15px' }}>
+                  Ich hab's verstanden!
+                </Button>
+              </HintContent>
+            </HintModal>
+            
+            {/* Share Modal */}
+            <ShareModal show={showShareModal} onClick={() => setShowShareModal(false)}>
+              <ShareContent onClick={e => e.stopPropagation()}>
+                <HintTitle>Teile deinen Erfolg!</HintTitle>
+                <CloseButton onClick={() => setShowShareModal(false)}>×</CloseButton>
+                
+                {shareImage && <ShareImage src={shareImage} alt="Math Princess Results" />}
+                
+                <ShareOptions>
+                  <ShareOption color="#25D366" onClick={() => shareVia('WhatsApp')}>
+                    <span>WhatsApp</span>
+                  </ShareOption>
+                  <ShareOption color="#3b5998" onClick={() => shareVia('Messenger')}>
+                    <span>Messenger</span>
+                  </ShareOption>
+                  <ShareOption color="#000000" onClick={downloadImage}>
+                    <span>Speichern</span>
+                  </ShareOption>
+                </ShareOptions>
+              </ShareContent>
+            </ShareModal>
+            
+            {/* Milestone Animation */}
+            <MilestoneAnimation show={showMilestone} type={milestoneType}>
+              <MilestoneTrophy>🏆</MilestoneTrophy>
+              <MilestoneText>
+                {milestoneType === 'bronze' && 'Bronze Trophäe!'}
+                {milestoneType === 'silver' && 'Silber Trophäe!'}
+                {milestoneType === 'gold' && 'Gold Trophäe!'}
+                {milestoneType === 'ruby' && 'Rubin Trophäe!'}
+              </MilestoneText>
+              <Button 
+                onClick={() => setShowMilestone(false)}
+                style={{ 
+                  background: 'white', 
+                  color: '#db7093',
+                  padding: isMobile ? '10px 20px' : '15px 30px',
+                  fontSize: isMobile ? '1rem' : '1.2rem'
+                }}
+              >
+                Weiter spielen
+              </Button>
+            </MilestoneAnimation>
+          </AppContainer>
+        );
+      }
       
-      {/* Hint Modal */}
-      <HintModal show={showHint} onClick={() => setShowHint(false)}>
-        <HintContent onClick={e => e.stopPropagation()}>
-          <HintTitle>Tipp</HintTitle>
-          <CloseButton onClick={() => setShowHint(false)}>×</CloseButton>
-          
-          {hintData.operation === '*' ? (
-            <>
-              <FriendlyHelper>
-                <HelperEmoji>🦄</HelperEmoji>
-                <HelperText>
-                  Bei <strong>{hintData.num1} mal {hintData.num2}</strong> legst du {hintData.num1} Reihen mit jeweils {hintData.num2} Kreisen.
-                </HelperText>
-              </FriendlyHelper>
-              <HintImageContainer>
-                {renderMultiplicationGrid(hintData.num1, hintData.num2)}
-              </HintImageContainer>
-              <HelperText>
-                Zähle alle Kreise: Es sind {hintData.num1 * hintData.num2}!
-              </HelperText>
-            </>
-          ) : (
-            <>
-              <FriendlyHelper>
-                <HelperEmoji>🦄</HelperEmoji>
-                <HelperText>
-                  Bei <strong>{hintData.num1} geteilt durch {hintData.num2}</strong> teilst du {hintData.num1} Kreise in {hintData.num2} gleiche Gruppen.
-                </HelperText>
-              </FriendlyHelper>
-              <HintImageContainer>
-                {renderDivisionVisualization(hintData.num1, hintData.num2)}
-              </HintImageContainer>
-              <HelperText>
-                Jede Gruppe hat {hintData.answer} Kreise!
-              </HelperText>
-            </>
-          )}
-          
-          <Button primary onClick={() => setShowHint(false)} style={{ marginTop: '15px' }}>
-            Ich hab's verstanden!
-          </Button>
-        </HintContent>
-      </HintModal>
-      
-      {/* Share Modal */}
-      <ShareModal show={showShareModal} onClick={() => setShowShareModal(false)}>
-        <ShareContent onClick={e => e.stopPropagation()}>
-          <HintTitle>Teile deinen Erfolg!</HintTitle>
-          <CloseButton onClick={() => setShowShareModal(false)}>×</CloseButton>
-          
-          {shareImage && <ShareImage src={shareImage} alt="Math Princess Results" />}
-          
-          <ShareOptions>
-            <ShareOption color="#25D366" onClick={() => shareVia('WhatsApp')}>
-              <span>WhatsApp</span>
-            </ShareOption>
-            <ShareOption color="#3b5998" onClick={() => shareVia('Messenger')}>
-              <span>Messenger</span>
-            </ShareOption>
-            <ShareOption color="#000000" onClick={downloadImage}>
-              <span>Speichern</span>
-            </ShareOption>
-          </ShareOptions>
-        </ShareContent>
-      </ShareModal>
-      
-      {/* Milestone Animation */}
-      <MilestoneAnimation show={showMilestone} type={milestoneType}>
-        <MilestoneTrophy>🏆</MilestoneTrophy>
-        <MilestoneText>
-          {milestoneType === 'bronze' && 'Bronze Trophäe!'}
-          {milestoneType === 'silver' && 'Silber Trophäe!'}
-          {milestoneType === 'gold' && 'Gold Trophäe!'}
-          {milestoneType === 'ruby' && 'Rubin Trophäe!'}
-        </MilestoneText>
-        <Button 
-          onClick={() => setShowMilestone(false)}
-          style={{ 
-            background: 'white', 
-            color: '#db7093',
-            padding: isMobile ? '10px 20px' : '15px 30px',
-            fontSize: isMobile ? '1rem' : '1.2rem'
-          }}
-        >
-          Weiter spielen
-        </Button>
-      </MilestoneAnimation>
-    </AppContainer>
-  );
-}
-
-export default App;
+      export default App;
