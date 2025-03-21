@@ -1,14 +1,12 @@
 # Mathe Prinzessin - Spielerisches Mathe-Lernen für Kinder
 
-![Mathe Prinzessin Logo](https://via.placeholder.com/200x200?text=👑)
 
-**Live Demo:** [https://nokey-54.github.io/mathe-prinzessin/](https://nokey-54.github.io/mathe-prinzessin/)
+**Live Demo:** [https://nokey-54.github.io/1x1-trainer/](https://nokey-54.github.io//1x1-trainer/)
 
 ## Übersicht
 
 Mathe Prinzessin ist eine liebevoll gestaltete, webbasierte Mathe-Lern-App für Grundschulkinder. Die App konzentriert sich auf Multiplikation und Division in einer kinderfreundlichen Prinzessinnen-Umgebung, die das Lernen zum Vergnügen macht.
 
-Inspiriert vom [1×1-Trainer](https://nokey-54.github.io/1x1-trainer/), bietet Mathe Prinzessin ein optimiertes Design speziell für junge Mädchen.
 
 ## Features
 
@@ -65,7 +63,7 @@ Inspiriert vom [1×1-Trainer](https://nokey-54.github.io/1x1-trainer/), bietet M
 
 2. Füge in `package.json` folgende Einträge hinzu:
    ```json
-   "homepage": "https://yourname.github.io/mathe-prinzessin",
+   "homepage": "https://yourname.github.io/1x1-trainer",
    "scripts": {
      "predeploy": "npm run build",
      "deploy": "gh-pages -d build"
