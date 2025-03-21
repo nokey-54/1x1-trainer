@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import html2canvas from 'html2canvas';
@@ -1022,6 +1021,37 @@ const HelperText = styled.div`
   }
 `;
 
+// Skill level display for adaptive difficulty
+const SkillLevelIndicator = styled.div`
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.6;
+  font-size: 0.6rem;
+  color: #db7093;
+  z-index: 1;
+  
+  @media (min-width: 768px) {
+    font-size: 0.7rem;
+    gap: 5px;
+  }
+`;
+
+const SkillDot = styled.div`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: ${props => props.active ? '#db7093' : '#f8f9fa'};
+  
+  @media (min-width: 768px) {
+    width: 8px;
+    height: 8px;
+  }
+`;
+
 function App() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -1042,6 +1072,13 @@ function App() {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [isSpecialQuestion, setIsSpecialQuestion] = useState(false);
   const [lastQuestionWasWrong, setLastQuestionWasWrong] = useState(false);
+  
+  // Adaptive difficulty system
+  const [playerSkillLevel, setPlayerSkillLevel] = useState(1);  // 1-10 scale
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  const [consecutiveWrong, setConsecutiveWrong] = useState(0);
+  const [performanceHistory, setPerformanceHistory] = useState([]);
+  const [adaptiveDifficulty, setAdaptiveDifficulty] = useState(true);
   
   const inputRef = useRef(null);
   const cardRef = useRef(null);
@@ -1108,13 +1145,68 @@ function App() {
     document.title = "Mathe Prinzessin | Lerne spielerisch Mathe";
   }, []);
 
-  // Load data from localStorage and initialize today's score
+  // Load player skill level and adaptive setting from localStorage
+  useEffect(() => {
+    const savedSkillLevel = localStorage.getItem('mathPrincess_skillLevel');
+    if (savedSkillLevel) {
+      setPlayerSkillLevel(parseInt(savedSkillLevel) || 1);
+    }
+    
+    const savedAdaptive = localStorage.getItem('mathPrincess_adaptiveDifficulty');
+    if (savedAdaptive !== null) {
+      setAdaptiveDifficulty(savedAdaptive === 'true');
+    }
+  }, []);
+
+  // Save player skill level to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('mathPrincess_skillLevel', playerSkillLevel.toString());
+  }, [playerSkillLevel]);
+
+  // Save adaptive setting when it changes
+  useEffect(() => {
+    localStorage.setItem('mathPrincess_adaptiveDifficulty', adaptiveDifficulty.toString());
+  }, [adaptiveDifficulty]);
+
+  // Load data from localStorage and initialize today's score or continue with saved question
   useEffect(() => {
     // Clean up old scores and load today's score
     cleanupOldScores();
     
-    // Generate first question
-    generateQuestion();
+    // Check for saved question
+    const savedQuestion = localStorage.getItem('mathPrincess_currentQuestion');
+    const savedDifficulty = localStorage.getItem('mathPrincess_difficulty');
+    const savedWrongState = localStorage.getItem('mathPrincess_lastQuestionWasWrong');
+    const savedAnswer = localStorage.getItem('mathPrincess_answer');
+    const savedStreak = localStorage.getItem('mathPrincess_currentStreak');
+    
+    if (savedQuestion && savedDifficulty) {
+      // Restore previous state
+      setQuestion(savedQuestion);
+      setLastQuestionWasWrong(savedWrongState === 'true');
+      
+      if (savedStreak) {
+        setCurrentStreak(parseInt(savedStreak) || 0);
+      }
+      
+      // Parse the question to extract the numbers and operation
+      const formattedQuestion = savedQuestion.replace('×', '*').replace('÷', '/');
+      const [num1, operation, num2] = formattedQuestion.split(' ');
+      
+      setHintData({
+        num1: parseInt(num1),
+        num2: parseInt(num2),
+        operation: operation === '*' ? '*' : '/',
+        answer: parseFloat(savedAnswer) || 0
+      });
+      
+      // Check if it's a special question
+      const savedSpecial = localStorage.getItem('mathPrincess_isSpecialQuestion');
+      setIsSpecialQuestion(savedSpecial === 'true');
+    } else {
+      // No saved question, generate a new one
+      generateQuestion();
+    }
     
     // Add viewport meta tag for mobile optimization
     const meta = document.createElement('meta');
@@ -1203,47 +1295,81 @@ function App() {
   };
 
   const generateQuestion = () => {
-    // Decide if this should be a special question (higher range)
+    // Decide if this should be a special question
     // 15% chance of special question if the streak is at least 3, otherwise 5% chance
     const specialQuestionChance = currentStreak >= 3 ? 0.15 : 0.05;
     const makeSpecialQuestion = Math.random() < specialQuestionChance;
     setIsSpecialQuestion(makeSpecialQuestion);
+    localStorage.setItem('mathPrincess_isSpecialQuestion', makeSpecialQuestion.toString());
     
     const operations = ['*', '/'];
     const operation = operations[Math.floor(Math.random() * operations.length)];
     let num1, num2;
 
+    // Base difficulty ranges (adjusted by skill level)
+    const baseMax = 5 + (playerSkillLevel * 2); // Scales from 7 to 25
+    
     if (makeSpecialQuestion) {
-      // Special questions have higher ranges (11-20)
+      // Special questions have higher ranges than normal for the current skill level
       if (operation === '*') {
-        num1 = Math.floor(Math.random() * 10) + 11; // 11-20
+        num1 = Math.floor(Math.random() * 10) + baseMax - 5; // Higher range for special
         num2 = Math.floor(Math.random() * 10) + 1;  // 1-10
       } else {
         // For division, ensure divisible
-        num2 = Math.floor(Math.random() * 5) + 2;   // 2-6
-        const possibleResults = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+        num2 = Math.floor(Math.random() * 5) + 2;  // 2-6
+        const possibleResults = Array.from({length: baseMax - 1}, (_, i) => i + 2); // 2 to baseMax
         const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
         num1 = num2 * result;  // Ensures clean division
       }
     } else {
-      // Regular questions (1-10)
+      // Regular questions - scaled by skill level
       if (operation === '*') {
-        num1 = Math.floor(Math.random() * 10) + 1;
-        num2 = Math.floor(Math.random() * 10) + 1;
+        // Adjust multiplication ranges based on skill level
+        if (playerSkillLevel <= 3) {
+          // Beginner: 1-5 × 1-5
+          num1 = Math.floor(Math.random() * 5) + 1;
+          num2 = Math.floor(Math.random() * 5) + 1;
+        } else if (playerSkillLevel <= 6) {
+          // Intermediate: 1-10 × 1-10
+          num1 = Math.floor(Math.random() * 10) + 1;
+          num2 = Math.floor(Math.random() * 10) + 1;
+        } else {
+          // Advanced: 5-15 × 1-10
+          num1 = Math.floor(Math.random() * 11) + 5;
+          num2 = Math.floor(Math.random() * 10) + 1;
+        }
       } else {
-        num2 = Math.floor(Math.random() * 9) + 2;  // 2-10
-        const possibleResults = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
-        num1 = num2 * result;  // Ensures clean division
+        // Division problems scaled by skill
+        if (playerSkillLevel <= 3) {
+          // Easy division with small numbers
+          num2 = Math.floor(Math.random() * 4) + 2;  // 2-5
+          const possibleResults = [1, 2, 3, 4, 5];
+          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
+          num1 = num2 * result;
+        } else if (playerSkillLevel <= 6) {
+          // Medium division
+          num2 = Math.floor(Math.random() * 7) + 2;  // 2-8
+          const possibleResults = [2, 3, 4, 5, 6, 7, 8];
+          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
+          num1 = num2 * result;
+        } else {
+          // More challenging division
+          num2 = Math.floor(Math.random() * 9) + 2;  // 2-10
+          const possibleResults = [3, 4, 5, 6, 7, 8, 9, 10];
+          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
+          num1 = num2 * result;
+        }
       }
     }
 
     const newQuestion = `${num1} ${operation === '*' ? '×' : '÷'} ${num2}`;
     setQuestion(newQuestion);
     setAnswer('');
-    
-    // Reset the wrong question flag
-    setLastQuestionWasWrong(false);
+
+    // Reset the wrong question flag when generating a totally new question
+    if (!lastQuestionWasWrong) {
+      setLastQuestionWasWrong(false);
+    }
     
     // Store values for hint system
     const correctAnswer = operation === '*' ? num1 * num2 : num1 / num2;
@@ -1253,6 +1379,16 @@ function App() {
       operation: operation,
       answer: correctAnswer
     });
+    
+    // Save to localStorage to prevent refreshing for easier questions
+    localStorage.setItem('mathPrincess_currentQuestion', newQuestion);
+    localStorage.setItem('mathPrincess_difficulty', playerSkillLevel.toString());
+    localStorage.setItem('mathPrincess_lastQuestionWasWrong', lastQuestionWasWrong.toString());
+    localStorage.setItem('mathPrincess_answer', correctAnswer.toString());
+    localStorage.setItem('mathPrincess_currentStreak', currentStreak.toString());
+    
+    // Record timestamp for this question
+    localStorage.setItem('mathPrincess_questionTimestamp', Date.now().toString());
     
     // Focus on input field after generating a new question
     if (inputRef.current && !useCustomKeypad) {
@@ -1294,20 +1430,61 @@ function App() {
     const [num1, operation, num2] = formattedQuestion.split(' ');
     const correctAnswer = operation === '*' ? num1 * num2 : num1 / num2;
     
+    // Update performance history
+    const answerCorrect = parseFloat(answer) === correctAnswer;
+    const timeToAnswer = Date.now() - parseInt(localStorage.getItem('mathPrincess_questionTimestamp') || '0');
+    
+    // Add this result to performance history
+    setPerformanceHistory(prev => {
+      const newHistory = [
+        ...prev, 
+        { 
+          correct: answerCorrect, 
+          difficulty: playerSkillLevel,
+          operation: operation,
+          timeToAnswer,
+          timestamp: Date.now()
+        }
+      ].slice(-20); // Keep only last 20 answers
+      
+      return newHistory;
+    });
+    
     // Update total questions counter
     const newTotalQuestions = totalQuestions + 1;
     setTotalQuestions(newTotalQuestions);
 
-    if (parseFloat(answer) === correctAnswer) {
-      // Only give points if the last question wasn't answered incorrectly
-      let newScore = score;
+    if (answerCorrect) {
+      // Handle correct answer
+      
       if (!lastQuestionWasWrong) {
-        newScore = score + 1;
+        // Give points only if the last question wasn't answered wrong
+        const newScore = score + 1;
         setScore(newScore);
         
-        // Update streak for correct answers
+        // Update consecutive counters
+        setConsecutiveCorrect(prev => prev + 1);
+        setConsecutiveWrong(0);
+        
+        // Update streak count
         const newStreak = currentStreak + 1;
         setCurrentStreak(newStreak);
+        
+        // Adjust difficulty if adaptive mode is on
+        if (adaptiveDifficulty) {
+          // Increase skill level after 3 consecutive correct answers
+          // or if answers are consistently fast and correct
+          const avgTimeToAnswer = timeToAnswer / 1000; // in seconds
+          const shouldIncreaseDifficulty = 
+            (consecutiveCorrect >= 2) || 
+            (answerCorrect && avgTimeToAnswer < 3 && consecutiveCorrect >= 1);
+            
+          if (shouldIncreaseDifficulty) {
+            setPlayerSkillLevel(prev => Math.min(prev + 1, 10));
+            // Reset consecutive counter after level increase
+            setConsecutiveCorrect(0);
+          }
+        }
         
         // Check for milestone achievements
         if (newScore === 10) {
@@ -1348,13 +1525,13 @@ function App() {
         
         // Create confetti for celebration
         createConfetti();
+        
+        // Save to localStorage
+        saveScore(newScore, newTotalQuestions);
       } else {
-        // If last question was wrong, still acknowledge the correct answer but no points
+        // If last question was wrong, acknowledge correct answer but no points
         showFeedback('success', 'Jetzt richtig! 🌟 Weiter so!', '👍');
       }
-      
-      // Save to localStorage
-      saveScore(newScore, newTotalQuestions);
       
       // Clear input and generate new question
       setAnswer('');
@@ -1363,11 +1540,23 @@ function App() {
       }, 1200);
       
     } else {
+      // Handle incorrect answer
+      
+      // Reset consecutive correct counter, increment wrong counter
+      setConsecutiveCorrect(0);
+      setConsecutiveWrong(prev => prev + 1);
+      
       // Reset streak on wrong answer
       setCurrentStreak(0);
       
       // Mark that this question was answered incorrectly
       setLastQuestionWasWrong(true);
+      
+      // Adjust difficulty if adaptive mode is on and consistently struggling
+      if (adaptiveDifficulty && consecutiveWrong >= 1) {
+        setPlayerSkillLevel(prev => Math.max(prev - 1, 1));
+        setConsecutiveWrong(0); // Reset after decreasing level
+      }
       
       // Decrease score for wrong answer (if above 0)
       let newScore = score;
@@ -1384,6 +1573,9 @@ function App() {
       
       // Just clear the input without generating a new question
       setAnswer('');
+      
+      // Update localStorage to mark question as wrong
+      localStorage.setItem('mathPrincess_lastQuestionWasWrong', 'true');
       
       // Focus on input field
       if (inputRef.current && !useCustomKeypad) {
@@ -1683,6 +1875,13 @@ function App() {
           
           <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏻 von Papa</span>
         </Footer>
+        
+        {/* Skill level indicator (visible but subtle) */}
+        <SkillLevelIndicator>
+          {Array.from({length: 10}).map((_, i) => (
+            <SkillDot key={i} active={i < playerSkillLevel} />
+          ))}
+        </SkillLevelIndicator>
       </Card>
       
       {/* Hint Modal */}
@@ -1750,7 +1949,8 @@ function App() {
           </ShareOptions>
         </ShareContent>
       </ShareModal>
-            {/* Milestone Animation */}
+      
+      {/* Milestone Animation */}
       <MilestoneAnimation show={showMilestone} type={milestoneType}>
         <MilestoneTrophy>🏆</MilestoneTrophy>
         <MilestoneText>
@@ -1775,4 +1975,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
