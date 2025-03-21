@@ -2,7 +2,7 @@
   "name": "1x1-trainer",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://nokey-54.github.io/mathe-prinzessin",
+  "homepage": "https://nokey-54.github.io/1x1-trainer",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
