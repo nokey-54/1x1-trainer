@@ -2001,7 +2001,7 @@ function App() {
                   <ScoreText>{score} Punkte</ScoreText>
                 </ScoreDisplay>
                 
-                <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏻 von Papa</span>
+                <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏼 von Papa</span>
               </Footer>
               
               {/* Skill level indicator (visible but subtle) */}
