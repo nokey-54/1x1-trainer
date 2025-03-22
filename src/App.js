@@ -890,6 +890,41 @@ const ShareButton = styled.button`
   }
 `;
 
+const HistoryButton = styled.button`
+  background: linear-gradient(to right, #20bf6b, #01baef);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 5px;
+  width: 60%;
+  margin: 6px auto;
+  
+  @media (min-width: 768px) {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+`;
+
 const ShareModal = styled.div`
   position: fixed;
   top: 0;
@@ -1111,34 +1146,106 @@ const HelperText = styled.div`
   }
 `;
 
-// Skill level display for adaptive difficulty
-const SkillLevelIndicator = styled.div`
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
+// Add history modal components
+const HistoryModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 3px;
-  opacity: 0.6;
-  font-size: 0.6rem;
-  color: #db7093;
-  z-index: 1;
+  z-index: 1000;
+  opacity: ${props => props.show ? 1 : 0};
+  visibility: ${props => props.show ? 'visible' : 'hidden'};
+  transition: opacity 0.3s, visibility 0.3s;
+`;
+
+const HistoryContent = styled.div`
+  background-color: white;
+  border-radius: 20px;
+  padding: 15px;
+  max-width: 95%;
+  width: 340px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  text-align: center;
   
   @media (min-width: 768px) {
-    font-size: 0.7rem;
-    gap: 5px;
+    padding: 30px;
+    width: 500px;
+    max-height: 90vh;
   }
 `;
 
-const SkillDot = styled.div`
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: ${props => props.active ? '#db7093' : '#f8f9fa'};
+const HistoryChart = styled.div`
+  margin: 20px 0;
+  border: 2px solid #ffb6c1;
+  border-radius: 15px;
+  padding: 10px;
+  background-color: #fff0f5;
+`;
+
+const HistoryBarContainer = styled.div`
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 0 10px;
+  margin-top: 10px;
+`;
+
+const HistoryBar = styled.div`
+  width: 8px;
+  height: ${props => props.height}%;
+  background: linear-gradient(to top, #ff69b4, #db7093);
+  border-radius: 5px;
+  position: relative;
+  min-height: 1px;
   
   @media (min-width: 768px) {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+  }
+  
+  &::after {
+    content: '${props => props.score}';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    color: #db7093;
+    
+    @media (min-width: 768px) {
+      font-size: 0.8rem;
+    }
+  }
+`;
+
+const HistoryLegend = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  margin-top: 25px;
+  font-size: 0.6rem;
+  color: #db7093;
+  
+  @media (min-width: 768px) {
+    font-size: 0.8rem;
+  }
+`;
+
+const HistoryHeader = styled.div`
+  font-weight: bold;
+  color: #db7093;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  
+  @media (min-width: 768px) {
+    font-size: 1.1rem;
   }
 `;
 
@@ -1163,12 +1270,10 @@ function App() {
   const [isSpecialQuestion, setIsSpecialQuestion] = useState(false);
   const [lastQuestionWasWrong, setLastQuestionWasWrong] = useState(false);
   
-  // Adaptive difficulty system
-  const [playerSkillLevel, setPlayerSkillLevel] = useState(1);  // 1-10 scale
-  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
-  const [consecutiveWrong, setConsecutiveWrong] = useState(0);
-  const [performanceHistory, setPerformanceHistory] = useState([]);
-  const [adaptiveDifficulty, setAdaptiveDifficulty] = useState(true);
+  // New state for history feature
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState(0);
   
   const inputRef = useRef(null);
   const cardRef = useRef(null);
@@ -1235,45 +1340,29 @@ function App() {
     document.title = "Mathe Prinzessin | Lerne spielerisch Mathe";
   }, []);
 
-  // Load player skill level and adaptive setting from localStorage
-  useEffect(() => {
-    const savedSkillLevel = localStorage.getItem('mathPrincess_skillLevel');
-    if (savedSkillLevel) {
-      setPlayerSkillLevel(parseInt(savedSkillLevel) || 1);
-    }
-    
-    const savedAdaptive = localStorage.getItem('mathPrincess_adaptiveDifficulty');
-    if (savedAdaptive !== null) {
-      setAdaptiveDifficulty(savedAdaptive === 'true');
-    }
-  }, []);
-
-  // Save player skill level to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('mathPrincess_skillLevel', playerSkillLevel.toString());
-  }, [playerSkillLevel]);
-
-  // Save adaptive setting when it changes
-  useEffect(() => {
-    localStorage.setItem('mathPrincess_adaptiveDifficulty', adaptiveDifficulty.toString());
-  }, [adaptiveDifficulty]);
-
-  // Load data from localStorage and initialize today's score or continue with saved question
+  // Load player data and history from localStorage
   useEffect(() => {
     // Clean up old scores and load today's score
-    cleanupOldScores();
+    loadScoresAndHistory();
     
     // Check for saved question
     const savedQuestion = localStorage.getItem('mathPrincess_currentQuestion');
-    const savedDifficulty = localStorage.getItem('mathPrincess_difficulty');
     const savedWrongState = localStorage.getItem('mathPrincess_lastQuestionWasWrong');
     const savedAnswer = localStorage.getItem('mathPrincess_answer');
     const savedStreak = localStorage.getItem('mathPrincess_currentStreak');
+    const savedSpecial = localStorage.getItem('mathPrincess_isSpecialQuestion');
     
-    if (savedQuestion && savedDifficulty) {
+    // Set last visit timestamp
+    const now = Date.now();
+    const lastVisit = parseInt(localStorage.getItem('mathPrincess_lastVisit') || '0');
+    setLastVisitTimestamp(lastVisit);
+    localStorage.setItem('mathPrincess_lastVisit', now.toString());
+    
+    if (savedQuestion) {
       // Restore previous state
       setQuestion(savedQuestion);
       setLastQuestionWasWrong(savedWrongState === 'true');
+      setIsSpecialQuestion(savedSpecial === 'true');
       
       if (savedStreak) {
         setCurrentStreak(parseInt(savedStreak) || 0);
@@ -1289,26 +1378,32 @@ function App() {
         operation: operation === '*' ? '*' : '/',
         answer: parseFloat(savedAnswer) || 0
       });
-      
-      // Check if it's a special question
-      const savedSpecial = localStorage.getItem('mathPrincess_isSpecialQuestion');
-      setIsSpecialQuestion(savedSpecial === 'true');
     } else {
       // No saved question, generate a new one
       generateQuestion();
     }
     
+    // Add meta tags for mobile web app optimization
+    addMobileWebAppMetaTags();
+    
+    return () => {
+      removeMobileWebAppMetaTags();
+    };
+  }, []);
+
+  // Add meta tags for mobile web app optimization
+  const addMobileWebAppMetaTags = () => {
     // Add viewport meta tag for mobile optimization
-    const meta = document.createElement('meta');
-    meta.name = 'viewport';
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-    document.head.appendChild(meta);
+    const viewportMeta = document.createElement('meta');
+    viewportMeta.name = 'viewport';
+    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewportMeta);
     
     // Add Google Fonts for better typography
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap';
-    document.head.appendChild(link);
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap';
+    document.head.appendChild(fontLink);
     
     // Add apple touch icon for home screen
     const appleIcon = document.createElement('link');
@@ -1317,18 +1412,33 @@ function App() {
     document.head.appendChild(appleIcon);
     
     // Make it feel like a native app when added to home screen
-    const webApp = document.createElement('meta');
-    webApp.name = 'apple-mobile-web-app-capable';
-    webApp.content = 'yes';
-    document.head.appendChild(webApp);
+    const webAppCapable = document.createElement('meta');
+    webAppCapable.name = 'apple-mobile-web-app-capable';
+    webAppCapable.content = 'yes';
+    document.head.appendChild(webAppCapable);
     
-    return () => {
-      document.head.removeChild(meta);
-      document.head.removeChild(link);
-      document.head.removeChild(appleIcon);
-      document.head.removeChild(webApp);
-    };
-  }, []);
+    // Status bar style for iOS
+    const statusBar = document.createElement('meta');
+    statusBar.name = 'apple-mobile-web-app-status-bar-style';
+    statusBar.content = 'black-translucent';
+    document.head.appendChild(statusBar);
+    
+    // Add version number to force cache refresh
+    const versionMeta = document.createElement('meta');
+    versionMeta.name = 'version';
+    versionMeta.content = '1.1.0'; // Increment this when making updates
+    document.head.appendChild(versionMeta);
+  };
+
+  // Remove meta tags to clean up
+  const removeMobileWebAppMetaTags = () => {
+    // Clean up meta tags when component unmounts
+    const metaTags = document.head.querySelectorAll('meta[name="viewport"], meta[name="apple-mobile-web-app-capable"], meta[name="apple-mobile-web-app-status-bar-style"], meta[name="version"]');
+    metaTags.forEach(tag => document.head.removeChild(tag));
+    
+    const links = document.head.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"], link[rel="apple-touch-icon"]');
+    links.forEach(link => document.head.removeChild(link));
+  };
 
   // Auto-hide milestone celebration
   useEffect(() => {
@@ -1341,8 +1451,8 @@ function App() {
     }
   }, [showMilestone]);
 
-  // Clean up old scores and load today's score
-  const cleanupOldScores = () => {
+  // Load scores and history from localStorage
+  const loadScoresAndHistory = () => {
     try {
       // Get current date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
@@ -1350,18 +1460,48 @@ function App() {
       // Get saved scores from localStorage
       const savedScores = JSON.parse(localStorage.getItem('mathTrainerScores')) || {};
       
-      // Keep only today's score
-      const updatedScores = { [today]: savedScores[today] || { score: 0, totalQuestions: 0 } };
+      // If today's entry doesn't exist, create it
+      if (!savedScores[today]) {
+        savedScores[today] = { score: 0, totalQuestions: 0 };
+      }
       
-      // Save back to localStorage
-      localStorage.setItem('mathTrainerScores', JSON.stringify(updatedScores));
+      // Keep only last 30 days data
+      const keepScores = {};
+      const now = new Date();
+      
+      // Process and filter data for the last 30 days
+      const historyArray = [];
+      
+      Object.entries(savedScores).forEach(([date, data]) => {
+        const entryDate = new Date(date);
+        const daysDiff = Math.floor((now - entryDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff < 30) {
+          keepScores[date] = data;
+          historyArray.push({
+            date,
+            score: data.score,
+            totalQuestions: data.totalQuestions,
+            daysDiff
+          });
+        }
+      });
+      
+      // Sort by date (newest first)
+      historyArray.sort((a, b) => (a.daysDiff - b.daysDiff));
+      
+      // Update history data
+      setHistoryData(historyArray);
+      
+      // Save filtered data back to localStorage
+      localStorage.setItem('mathTrainerScores', JSON.stringify(keepScores));
       
       // Set state from today's score
-      setScore(updatedScores[today].score);
-      setTotalQuestions(updatedScores[today].totalQuestions);
+      setScore(savedScores[today].score);
+      setTotalQuestions(savedScores[today].totalQuestions);
       
     } catch (error) {
-      console.error('Error cleaning up scores:', error);
+      console.error('Error loading scores:', error);
       // Reset if there's an error
       setScore(0);
       setTotalQuestions(0);
@@ -1410,59 +1550,28 @@ function App() {
     const operation = operations[Math.floor(Math.random() * operations.length)];
     let num1, num2;
 
-    // Base difficulty ranges (adjusted by skill level)
-    const baseMax = 5 + (playerSkillLevel * 2); // Scales from 7 to 25
-    
     if (makeSpecialQuestion) {
-      // Special questions have higher ranges than normal for the current skill level
+      // Special questions have higher ranges (11-20)
       if (operation === '*') {
-        num1 = Math.floor(Math.random() * 10) + baseMax - 5; // Higher range for special
+        num1 = Math.floor(Math.random() * 10) + 11; // 11-20
         num2 = Math.floor(Math.random() * 10) + 1;  // 1-10
       } else {
         // For division, ensure divisible
-        num2 = Math.floor(Math.random() * 5) + 2;  // 2-6
-        const possibleResults = Array.from({length: baseMax - 1}, (_, i) => i + 2); // 2 to baseMax
+        num2 = Math.floor(Math.random() * 5) + 2;   // 2-6
+        const possibleResults = [2, 3, 4, 5, 6, 7, 8, 9, 10];
         const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
         num1 = num2 * result;  // Ensures clean division
       }
     } else {
-      // Regular questions - scaled by skill level
+      // Regular questions (1-10)
       if (operation === '*') {
-        // Adjust multiplication ranges based on skill level
-        if (playerSkillLevel <= 3) {
-          // Beginner: 1-5 × 1-5
-          num1 = Math.floor(Math.random() * 5) + 1;
-          num2 = Math.floor(Math.random() * 5) + 1;
-        } else if (playerSkillLevel <= 6) {
-          // Intermediate: 1-10 × 1-10
-          num1 = Math.floor(Math.random() * 10) + 1;
-          num2 = Math.floor(Math.random() * 10) + 1;
-        } else {
-          // Advanced: 5-15 × 1-10
-          num1 = Math.floor(Math.random() * 11) + 5;
-          num2 = Math.floor(Math.random() * 10) + 1;
-        }
+        num1 = Math.floor(Math.random() * 10) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
       } else {
-        // Division problems scaled by skill
-        if (playerSkillLevel <= 3) {
-          // Easy division with small numbers
-          num2 = Math.floor(Math.random() * 4) + 2;  // 2-5
-          const possibleResults = [1, 2, 3, 4, 5];
-          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
-          num1 = num2 * result;
-        } else if (playerSkillLevel <= 6) {
-          // Medium division
-          num2 = Math.floor(Math.random() * 7) + 2;  // 2-8
-          const possibleResults = [2, 3, 4, 5, 6, 7, 8];
-          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
-          num1 = num2 * result;
-        } else {
-          // More challenging division
-          num2 = Math.floor(Math.random() * 9) + 2;  // 2-10
-          const possibleResults = [3, 4, 5, 6, 7, 8, 9, 10];
-          const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
-          num1 = num2 * result;
-        }
+        num2 = Math.floor(Math.random() * 9) + 2;  // 2-10
+        const possibleResults = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const result = possibleResults[Math.floor(Math.random() * possibleResults.length)];
+        num1 = num2 * result;  // Ensures clean division
       }
     }
 
@@ -1481,7 +1590,6 @@ function App() {
     
     // Save to localStorage to prevent refreshing for easier questions
     localStorage.setItem('mathPrincess_currentQuestion', newQuestion);
-    localStorage.setItem('mathPrincess_difficulty', playerSkillLevel.toString());
     localStorage.setItem('mathPrincess_lastQuestionWasWrong', 'false'); // Reset when generating new question
     localStorage.setItem('mathPrincess_answer', correctAnswer.toString());
     localStorage.setItem('mathPrincess_currentStreak', currentStreak.toString());
@@ -1532,31 +1640,11 @@ function App() {
     const [num1, operation, num2] = formattedQuestion.split(' ');
     const correctAnswer = operation === '*' ? num1 * num2 : num1 / num2;
     
-    // Update performance history
-    const answerCorrect = parseFloat(answer) === correctAnswer;
-    const timeToAnswer = Date.now() - parseInt(localStorage.getItem('mathPrincess_questionTimestamp') || '0');
-    
-    // Add this result to performance history
-    setPerformanceHistory(prev => {
-      const newHistory = [
-        ...prev, 
-        { 
-          correct: answerCorrect, 
-          difficulty: playerSkillLevel,
-          operation: operation,
-          timeToAnswer,
-          timestamp: Date.now()
-        }
-      ].slice(-20); // Keep only last 20 answers
-      
-      return newHistory;
-    });
-    
     // Update total questions counter
     const newTotalQuestions = totalQuestions + 1;
     setTotalQuestions(newTotalQuestions);
 
-    if (answerCorrect) {
+    if (parseFloat(answer) === correctAnswer) {
       // Handle correct answer
       
       if (!lastQuestionWasWrong) {
@@ -1564,30 +1652,10 @@ function App() {
         const newScore = score + 1;
         setScore(newScore);
         
-        // Update consecutive counters
-        setConsecutiveCorrect(prev => prev + 1);
-        setConsecutiveWrong(0);
-        
-        // Update streak count
+        // Update streak for correct answers
         const newStreak = currentStreak + 1;
         setCurrentStreak(newStreak);
         localStorage.setItem('mathPrincess_currentStreak', newStreak.toString());
-        
-        // Adjust difficulty if adaptive mode is on
-        if (adaptiveDifficulty) {
-          // Increase skill level after 3 consecutive correct answers
-          // or if answers are consistently fast and correct
-          const avgTimeToAnswer = timeToAnswer / 1000; // in seconds
-          const shouldIncreaseDifficulty = 
-            (consecutiveCorrect >= 2) || 
-            (answerCorrect && avgTimeToAnswer < 3 && consecutiveCorrect >= 1);
-            
-          if (shouldIncreaseDifficulty) {
-            setPlayerSkillLevel(prev => Math.min(prev + 1, 10));
-            // Reset consecutive counter after level increase
-            setConsecutiveCorrect(0);
-          }
-        }
         
         // Check for milestone achievements
         if (newScore === 10) {
@@ -1645,22 +1713,12 @@ function App() {
     } else {
       // Handle incorrect answer
       
-      // Reset consecutive correct counter, increment wrong counter
-      setConsecutiveCorrect(0);
-      setConsecutiveWrong(prev => prev + 1);
-      
       // Reset streak on wrong answer
       setCurrentStreak(0);
       localStorage.setItem('mathPrincess_currentStreak', '0');
       
       // Mark that this question was answered incorrectly
       setLastQuestionWasWrong(true);
-      
-      // Adjust difficulty if adaptive mode is on and consistently struggling
-      if (adaptiveDifficulty && consecutiveWrong >= 1) {
-        setPlayerSkillLevel(prev => Math.max(prev - 1, 1));
-        setConsecutiveWrong(0); // Reset after decreasing level
-      }
       
       // Decrease score for wrong answer (if above 0)
       let newScore = score;
@@ -1695,6 +1753,13 @@ function App() {
     setShowHint(true);
   };
 
+  // Handle showing history
+  const handleShowHistory = () => {
+    // Refresh history data before showing
+    loadScoresAndHistory();
+    setShowHistory(true);
+  };
+
   // Create and share image
   const handleShare = async () => {
     try {
@@ -1705,31 +1770,31 @@ function App() {
       clone.style.width = '500px';
       clone.style.maxWidth = '90%';
       
-      // Add a share info section
-      const shareInfo = document.createElement('div');
-      shareInfo.innerHTML = `
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #ffb6c1; text-align: center;">
-          <h3 style="color: #db7093; margin-bottom: 10px;">Meine Mathe-Leistung!</h3>
-          <p style="font-size: 1.2rem; color: #db7093;">
-            Ich habe <strong>${score} Punkte</strong> bei "Mathe Prinzessin" erreicht!
-          </p>
-          <p style="font-size: 0.9rem; color: #db7093; margin-top: 5px;">
-            ${new Date().toLocaleDateString()}
-          </p>
-        </div>
-      `;
-      clone.appendChild(shareInfo);
-      document.body.appendChild(clone);
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      
-      // Take screenshot
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        logging: false
-      });
-      
+            // Add a share info section
+            const shareInfo = document.createElement('div');
+            shareInfo.innerHTML = `
+              <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed #ffb6c1; text-align: center;">
+                <h3 style="color: #db7093; margin-bottom: 10px;">Meine Mathe-Leistung!</h3>
+                <p style="font-size: 1.2rem; color: #db7093;">
+                  Ich habe <strong>${score} Punkte</strong> bei "Mathe Prinzessin" erreicht!
+                </p>
+                <p style="font-size: 0.9rem; color: #db7093; margin-top: 5px;">
+                  ${new Date().toLocaleDateString()}
+                </p>
+              </div>
+            `;
+            clone.appendChild(shareInfo);
+            document.body.appendChild(clone);
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            clone.style.top = '0';
+            
+            // Take screenshot
+            const canvas = await html2canvas(clone, {
+              scale: 2,
+              logging: false
+            });
+            
             // Convert to image
             const image = canvas.toDataURL('image/png');
             setShareImage(image);
@@ -1855,6 +1920,12 @@ function App() {
           );
         };
       
+        // Format date for display in history
+        const formatDate = (dateString) => {
+          const date = new Date(dateString);
+          return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+        };
+      
         return (
           <AppContainer style={{ height: `${viewportHeight}px` }}>
             {/* Confetti effect when answering correctly */}
@@ -1888,7 +1959,7 @@ function App() {
                 <ProgressBar progress={progressPercentage} />
               </ProgressContainer>
               
-              {/* Beautiful Trophy Path - New Feature */}
+              {/* Beautiful Trophy Path */}
               <TrophyPathContainer>
                 <TrophyPath />
                 <TrophyMilestone style={{ left: '10%' }}>
@@ -1971,7 +2042,7 @@ function App() {
                   ))}
                   <KeypadButton isAction onClick={() => handleCustomKeypadInput('clear')}>C</KeypadButton>
                   <KeypadButton onClick={() => handleCustomKeypadInput('0')}>0</KeypadButton>
-                  <KeypadButton isAction onClick={() => handleCustomKeypadInput('enter')}>⏎</KeypadButton>
+                  <KeypadButton isAction onClick={() => handleCustomKeypadInput('backspace')}>⌫</KeypadButton>
                 </CustomKeypad>
               )}
               
@@ -1990,6 +2061,11 @@ function App() {
                 </Button>
               </ButtonContainer>
               
+              {/* New feature: Show history button */}
+              <HistoryButton onClick={handleShowHistory}>
+                📊 Meine Fortschritte
+              </HistoryButton>
+              
               <ShareButton onClick={handleShare}>
                 <span>Teilen</span>
                 <span>📱</span>
@@ -2003,13 +2079,6 @@ function App() {
                 
                 <span>mit <HeartIcon>♥</HeartIcon> für Emily 👸🏼 von Papa</span>
               </Footer>
-              
-              {/* Skill level indicator (visible but subtle) */}
-              <SkillLevelIndicator>
-                {Array.from({length: 10}).map((_, i) => (
-                  <SkillDot key={i} active={i < playerSkillLevel} />
-                ))}
-              </SkillLevelIndicator>
             </Card>
             
             {/* Hint Modal */}
@@ -2055,6 +2124,46 @@ function App() {
                 </Button>
               </HintContent>
             </HintModal>
+            
+            {/* History Modal - New feature */}
+            <HistoryModal show={showHistory} onClick={() => setShowHistory(false)}>
+              <HistoryContent onClick={e => e.stopPropagation()}>
+                <HintTitle>Meine Fortschritte</HintTitle>
+                <CloseButton onClick={() => setShowHistory(false)}>×</CloseButton>
+                
+                <HistoryChart>
+                  <HistoryHeader>Punkte der letzten 30 Tage</HistoryHeader>
+                  <HistoryBarContainer>
+                    {historyData.map((day, index) => {
+                      // Calculate height percentage (max value 100 for scaling)
+                      const maxScore = Math.max(...historyData.map(d => d.score), 10); // At least 10 to avoid division by zero
+                      const heightPercentage = (day.score / maxScore) * 80; // 80% max height for bars
+                      
+                      return (
+                        <HistoryBar 
+                          key={index} 
+                          height={heightPercentage > 0 ? Math.max(heightPercentage, 5) : 0} 
+                          score={day.score}
+                        />
+                      );
+                    })}
+                  </HistoryBarContainer>
+                  <HistoryLegend>
+                    {historyData.length > 0 ? (
+                      historyData.map((day, index) => (
+                        <span key={index}>{formatDate(day.date)}</span>
+                      ))
+                    ) : (
+                      <span style={{ textAlign: 'center', width: '100%' }}>Noch keine Daten vorhanden</span>
+                    )}
+                  </HistoryLegend>
+                </HistoryChart>
+                
+                <Button primary onClick={() => setShowHistory(false)} style={{ marginTop: '15px' }}>
+                  Zurück zum Spiel
+                </Button>
+              </HistoryContent>
+            </HistoryModal>
             
             {/* Share Modal */}
             <ShareModal show={showShareModal} onClick={() => setShowShareModal(false)}>
