@@ -513,15 +513,20 @@ const TrophyIcon = styled.div`
 
 const TrophyLabel = styled.div`
   font-size: 0.55rem;
-  color: ${props => props.active ? '#db7093' : '#aaa'};
+  color: ${props => props.active ? '#db7093' : '#666'};
   font-weight: ${props => props.active ? 'bold' : 'normal'};
   position: absolute;
   bottom: -14px;
   white-space: nowrap;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 2px 4px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   
   @media (min-width: 768px) {
     font-size: 0.7rem;
     bottom: -18px;
+    padding: 3px 6px;
   }
 `;
 
